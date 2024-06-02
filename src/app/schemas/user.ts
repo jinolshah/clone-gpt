@@ -5,8 +5,9 @@ const UserSchema = z.object({
     fullName: z.string(),
     email: z.string().email(),
     password: z.string().optional(),
-    provider: z.enum(['password','google'])
+    provider: z.enum(['password', 'google'])
 })
 
 const schema = zodSchema(UserSchema);
+schema.index({ email: 1 }, { unique: true })
 export const UserModel = models?.User || model('User', schema);

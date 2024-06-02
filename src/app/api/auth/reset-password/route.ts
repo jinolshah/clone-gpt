@@ -1,28 +1,24 @@
-import { LoginDto } from "@/app/dto/login.dto"
-import { RegisterDto } from "@/app/dto/register.dto"
+import { ResetPasswordDto } from "@/app/dto/reset-password.dto"
 import { UserModel } from "@/app/schemas/user"
 import ErrorHandler from "@/utils/errorHandler.server"
-import { SignJWT } from "@/utils/jwt.server"
 import ConnectDB from "@/utils/mongoose.server"
-import { compareSync, hashSync } from 'bcryptjs'
-import { sign } from "jsonwebtoken"
-import { cookies } from "next/headers"
+import { hashSync } from 'bcryptjs'
+import { JwtPayload, sign, verify } from "jsonwebtoken"
 export async function POST(request: Request) {
     try {
         await ConnectDB()
         let body = await request.json()
-        let { email, password } = LoginDto.parse(body)
+        let { token,password } = ResetPasswordDto.parse(body)
         try {
+            let {email,role} = verify(token,process.env.JWT_SECRET!) as JwtPayload
+            if(role != 'verify'){
+                throw new Error("Invalid Token")
+            }
             let user = await UserModel.findOne({ email: email })
             if (!user) {
-                throw new Error("Invalid Login Credentials")
+                throw new Error("User does not exists")
             }
-            if (!compareSync(password!, user.password)) {
-                throw new Error("Invalid Login Credentials")
-            }
-            let token = sign({ email }, process.env.JWT_SECRET!, { expiresIn: "24h" })
-            const cookieStore = cookies()
-            cookieStore.set("session",token)
+            await UserModel.updateOne({email:email},{password:hashSync(password)})
             return Response.json({ success: true })
         } catch (err: any) {
             if (new Error(err).message.includes("E11000 duplicate key")) {
